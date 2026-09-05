@@ -4,6 +4,8 @@
 #include "storage.h"
 #include <string>
 
+struct InputCancelled {};
+
 void print_menu()
 {
     std::cout << "\n";
@@ -35,6 +37,117 @@ std::string trim(const std::string& s)
     size_t last = s.find_last_not_of(WS);
     return s.substr(first, last - first + 1);
 }
+
+double read_double(const std::string& label)
+{
+    while (true)
+    {
+        std::cout << " " << label << ": ";
+
+        std::string line;
+        if (!std::getline(std::cin, line))
+            throw InputCancelled {};
+        
+        try
+        {
+            return std::stod(trim(line));
+        }
+        catch(const std::exception& e)
+        {
+            std::cout << "숫자로 입력하세요.\n";
+        }
+        
+    }
+}
+
+int read_int(const std::string& label)
+{
+    while (true)
+    {
+        std::cout << " " << label << ": ";
+        
+        std::string line;
+        if (!std::getline(std::cin, line))
+            throw InputCancelled {};
+
+        try
+        {
+            return std::stod(trim(line));
+        }
+        catch(const std::exception& e)
+        {
+            std::cout << "숫자로 입력하세요.\n";
+        }
+        
+    }
+}
+
+bool ask_yes_no(const std::string& label)
+{
+    while (true)
+    {
+        std::cout << " " << label << " 계속 입력? (y/n): ";
+
+        std::string line;
+        if (!std::getline(std::cin, line))
+            throw InputCancelled {};
+        
+        try
+        {
+            line = trim(line);
+
+            return line == "y";
+        }
+        catch(const std::exception& e)
+        {
+            std::cout << "y 또는 n으로 답하세요.\n";
+        }
+        
+    }
+}
+
+void menu_input_data(DataSet& data)
+{
+    
+}
+
+void input_manually(DataSet& data)
+{
+    int count = 0;
+
+    try
+    {
+        while (true)
+        {
+            std::cout << "\n === 실험 #" << (count + 1) << " ===\n";
+
+            double temp    = read_double("온도 (°C)           ");
+            int    shakes  = read_int   ("흔든 횟수 (회)      ");
+            double elapsed = read_double("개봉 후 경과시간(분)");
+            double loss    = read_double("질량 감소량 (g)     ");
+
+            data.add_record({temp, shakes, elapsed, loss});
+            ++count;
+
+            std::cout << "계속 입력? (y/n): ";
+
+            
+        }
+    }
+    catch(const InputCancelled&)
+    {
+        std::cout << "\n 입력이 취소되었습니다.\n";
+        return;
+    }
+    
+    
+}
+
+void input_from_csv(DataSet& data)
+{
+
+}
+
 
 int main()
 {
