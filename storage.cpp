@@ -4,16 +4,31 @@
 #include <sstream>
 #include <filesystem>
 #include <algorithm>
+#include <cctype>
 
 namespace fs = std::filesystem;
 
+std::string with_csv_extension(const std::string& filename)
+{
+    std::string lower = filename;
+    std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {return std::tolower(c);});
+
+    if (fs::path(lower).extension() == ".csv")
+        return filename;
+    
+    else 
+        return filename + ".csv";
+}
+
 void save_csv(const DataSet& data, const std::string& path)
 {
-    std::ofstream file(path);
+    std::string full = with_csv_extension(path);
+
+    std::ofstream file(full);
 
     if (!file.is_open())
     {
-        throw std::runtime_error("Failed to open file for writing: " + path);
+        throw std::runtime_error("Failed to open file for writing: " + full);
     }
 
     file << "temperature_C,shakes,elapsed_min,mass_loss_g\n";
@@ -149,3 +164,4 @@ std::vector<FileInfo> list_csv_files(const std::string& directory)
 
     return result;
 }
+

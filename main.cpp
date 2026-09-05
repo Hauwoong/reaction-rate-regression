@@ -6,6 +6,10 @@
 
 struct InputCancelled {};
 
+void menu_input_data(DataSet& data);
+void input_manually(DataSet& data);
+void input_from_csv(DataSet& data);
+
 void print_menu()
 {
     std::cout << "\n";
@@ -42,7 +46,7 @@ double read_double(const std::string& label)
 {
     while (true)
     {
-        std::cout << " " << label << ": ";
+        std::cout << "  " << label << ": ";
 
         std::string line;
         if (!std::getline(std::cin, line))
@@ -64,7 +68,7 @@ int read_int(const std::string& label)
 {
     while (true)
     {
-        std::cout << " " << label << ": ";
+        std::cout << "  " << label << ": ";
         
         std::string line;
         if (!std::getline(std::cin, line))
@@ -72,7 +76,7 @@ int read_int(const std::string& label)
 
         try
         {
-            return std::stod(trim(line));
+            return std::stoi(trim(line));
         }
         catch(const std::exception& e)
         {
@@ -86,66 +90,194 @@ bool ask_yes_no(const std::string& label)
 {
     while (true)
     {
-        std::cout << " " << label << " 계속 입력? (y/n): ";
+        std::cout << "  " << label << " (y/n): ";
 
         std::string line;
         if (!std::getline(std::cin, line))
             throw InputCancelled {};
         
-        try
-        {
-            line = trim(line);
+        line = trim(line);
 
-            return line == "y";
-        }
-        catch(const std::exception& e)
-        {
-            std::cout << "y 또는 n으로 답하세요.\n";
-        }
-        
+        if (line == "y" || line == "Y") return true;
+        if (line == "n" || line == "N") return false;
+
+        std::cout << "y 또는 n으로 답하세요.\n";
     }
-}
-
-void menu_input_data(DataSet& data)
-{
-    
 }
 
 void input_manually(DataSet& data)
 {
     int count = 0;
 
-    try
+    while (true)
     {
-        while (true)
-        {
-            std::cout << "\n === 실험 #" << (count + 1) << " ===\n";
+        std::cout << "\n  === 실험 #" << (count + 1) << " ===\n";
 
-            double temp    = read_double("온도 (°C)           ");
-            int    shakes  = read_int   ("흔든 횟수 (회)      ");
-            double elapsed = read_double("개봉 후 경과시간(분)");
-            double loss    = read_double("질량 감소량 (g)     ");
+        double temp    = read_double("온도 (°C)           ");
+        int    shakes  = read_int   ("흔든 횟수 (회)      ");
+        double elapsed = read_double("개봉 후 경과시간(분)");
+        double loss    = read_double("질량 감소량 (g)     ");
 
-            data.add_record({temp, shakes, elapsed, loss});
-            ++count;
+        data.add_record({temp, shakes, elapsed, loss});
+        ++count;
 
-            std::cout << "계속 입력? (y/n): ";
-
-            
-        }
+        if (!ask_yes_no("계속 입력?"))
+            break;
     }
-    catch(const InputCancelled&)
+
+    if (count == 0)
+        return;
+
+    std::cout << "\n  ✓ " << count << "건 입력 완료. 저장할 파일명: ";
+
+    std::string filename;
+
+    if (!std::getline(std::cin, filename))
+        return;
+
+    filename = trim(filename);
+
+    if (filename.empty())
     {
-        std::cout << "\n 입력이 취소되었습니다.\n";
+        std::cout << "  ✗ 파일명을 입력하지 않아 저장하지 않았습니다.\n";
         return;
     }
-    
-    
+
+    save_csv(data, "data/" + filename);
+    std::cout << "  ✓ 저장 완료: ./data/" << with_csv_extension(filename) << "\n";
+}
+
+void menu_input_data(DataSet& data)
+{
+    while (true)
+    {
+        std::cout << "\n  ── 실험 데이터 입력 ──────────────────\n\n";
+        std::cout << "  입력 방식을 선택하세요:\n";
+        std::cout << "    [1] 직접 입력\n";
+        std::cout << "    [2] CSV 파일 불러오기\n";
+        std::cout << "    [0] 메인 메뉴\n";
+        std::cout << "  >> 선택: ";
+
+        std::string input;
+
+        if (!std::getline(std::cin, input))
+            return;
+        
+        std::string s = trim(input);
+
+        if (s == "1")
+        {
+            try
+            {
+                input_manually(data);
+            }
+
+            catch(const std::exception& e)
+            {
+                std::cout << "저장 실패: " << e.what() << "\n";
+            }
+            
+            catch(const InputCancelled&)
+            {
+                std::cout << "잘못된 입력입니다!\n";
+            }
+
+            return;
+        }
+
+        else if (s == "2")
+        {
+            try
+            {
+                input_from_csv(data);
+            }
+
+            catch(const std::exception& e)
+            {
+                std::cout << "저장 실패: " << e.what() << "\n";
+            }
+
+            catch(const InputCancelled&)
+            {
+                std::cout << "잘못된 입력입니다!\n";
+            }
+            
+            return;
+        }
+
+        else if (s == "0")
+        {
+            return;
+        }
+
+        else
+        {
+            std::cout << "잘못된 선택입니다.\n";
+        }
+    }
 }
 
 void input_from_csv(DataSet& data)
 {
+    auto files = list_csv_files("data");
 
+    if (files.empty())
+    {
+        std::cout << "저장된 파일이 없습니다.\n";
+        return;
+    }
+    
+    int index = 1;
+
+    for (const auto& file : files)
+    {
+        std::cout << "  [" << index << "] " << file.name << "  ";
+        ++index;
+
+        if (file.count == -1)
+            std::cout << "(읽기 실패)\n";
+
+        else
+            std::cout << "(" << file.count << "건)\n";
+    }
+
+    while (true)
+    {
+        int choice = read_int("번호를 입력해주세요 ");
+
+        if (choice >= 1 && choice <= static_cast<int>(files.size()))
+        {
+            try
+            {
+                DataSet loaded = load_csv("data/" + files[choice - 1].name);
+
+                if (data.size() > 0)
+                {
+                    std::cout << "! 현재 " << data.size() << "건이 로드되어 있습니다.\n";
+
+                    if (!ask_yes_no("기존 데이터에 덮어 쓰겠습니까? "))
+                    return;
+                }
+
+                data = loaded;
+                std::cout << "  ✓ " << files[choice - 1].name << " 로드 완료 (" << data.size() << "건)\n";
+                return;
+            }
+
+            
+
+            catch(const std::exception& e)
+            {
+                std::cout << "불러오기 실패: " << e.what() << "\n";
+                return;
+            }
+        }
+
+        else
+        {
+            std::cout << " 1 ~ " << files.size() << "사이로 입력하세요.\n";
+        }
+    }
 }
 
 
@@ -171,7 +303,7 @@ int main()
 
         if (s == "1")
         {
-
+            menu_input_data(data);
         }
         else if (s == "2")
         {
