@@ -10,18 +10,18 @@ using Matrix = std::vector<Vector>;
 enum Column
 {
     TEMP,
-    SHAKES,
-    ELAPSED,
-    LOSS,
+    CATALYST,
+    H2O2,
+    RATE,
     COLUMN_COUNT
 };
 
 struct Record
 {
     double temperature;
-    int number_of_shakes;
-    double elapsed_time;
-    double mass_reduction;
+    double catalyst_mass;
+    double h2o2_conc;
+    double o2_rate;
 
     Vector factors() const;
     double get(Column c) const;

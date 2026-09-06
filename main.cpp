@@ -15,12 +15,12 @@ void menu_view_data(DataSet& data)
             return;
         }
 
-        std::vector<int> W = {5, 8, 10, 10, 12};
+        std::vector<int> W = {5, 8, 11, 11, 14};
 
         std::cout << "\n  ── 현재 로드된 데이터 (" << static_cast<int>(data.size()) << "건) ──\n";
 
         print_table_line(W, "┌", "┬", "┐");
-        print_table_row (W, {"#", "온도°C", "흔든횟수", "경과시간", "질량감소(g)"});
+        print_table_row (W, {"#", "온도°C", "촉매(g)", "H2O2(M)", "속도(mL/s)"});
         print_table_line(W, "├", "┼", "┤");
 
         for (int i = 1; i <= data.size(); ++i)
@@ -28,17 +28,17 @@ void menu_view_data(DataSet& data)
             const Record& r = data.get_record(i);
             print_table_row(W, {std::to_string(i),
                 to_fixed(r.temperature, 1),
-                std::to_string(r.number_of_shakes),
-                to_fixed(r.elapsed_time, 0),
-                to_fixed(r.mass_reduction, 3)},
+                to_fixed(r.catalyst_mass, 2),
+                to_fixed(r.h2o2_conc, 2),
+                to_fixed(r.o2_rate, 3)},
                 true);
         }
 
         print_table_line(W, "└", "┴", "┘");
 
-        const char* NAMES[] = {"온도", "흔든 횟수", "경과 시간", "질량 감소"};
-        const char* UNITS[] = {"°C", "회", "분", "g"};
-        const int DIGITS[] = {1, 0, 0, 2};
+        const char* NAMES[] = {"온도", "촉매 질량", "H2O2 농도", "산소 발생속도"};
+        const char* UNITS[] = {"°C", "g", "M", "mL/s"};
+        const int DIGITS[] = {1, 2, 2, 3};
 
         auto r = data.ranges();
 
@@ -46,7 +46,7 @@ void menu_view_data(DataSet& data)
 
         for (int c = 0; c < COLUMN_COUNT; ++c)
         {
-            std::cout << "    " << pad(NAMES[c], 10)
+            std::cout << "    " << pad(NAMES[c], 14)
               << " : " << to_fixed(r[c].lo, DIGITS[c])
               << " ~ " << to_fixed(r[c].hi, DIGITS[c])
               << " "   << UNITS[c] << "\n";
@@ -99,12 +99,12 @@ void input_manually(DataSet& data)
     {
         std::cout << "\n  === 실험 #" << (count + 1) << " ===\n";
 
-        double temp    = read_double("온도 (°C)           ");
-        int    shakes  = read_int   ("흔든 횟수 (회)      ");
-        double elapsed = read_double("개봉 후 경과시간(분)");
-        double loss    = read_double("질량 감소량 (g)     ");
+        double temp     = read_double("온도 (°C)              ");
+        double catalyst = read_double("촉매 질량 (g)          ");
+        double h2o2     = read_double("H2O2 초기 농도 (M)     ");
+        double rate     = read_double("산소 발생 속도 (mL/s)  ");
 
-        data.add_record({temp, shakes, elapsed, loss});
+        data.add_record({temp, catalyst, h2o2, rate});
         ++count;
 
         if (!ask_yes_no("계속 입력?"))

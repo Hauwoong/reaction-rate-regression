@@ -31,15 +31,15 @@ void save_csv(const DataSet& data, const std::string& path)
         throw std::runtime_error("Failed to open file for writing: " + full);
     }
 
-    file << "temperature_C,shakes,elapsed_min,mass_loss_g\n";
+    file << "temperature_C,catalyst_g,h2o2_M,o2_rate_mL_s\n";
 
     for (int i = 1; i <= data.size(); ++i)
     {
         const Record& record = data.get_record(i);
         file << record.temperature << ","
-             << record.number_of_shakes << ","
-             << record.elapsed_time << ","
-             << record.mass_reduction << "\n";       
+             << record.catalyst_mass << ","
+             << record.h2o2_conc << ","
+             << record.o2_rate << "\n";
     }
 }
 
@@ -123,7 +123,7 @@ DataSet load_csv(const std::string& path)
             }
         }
 
-        data.add_record(Record{values[0], static_cast<int>(values[1]), values[2], values[3]});
+        data.add_record(Record{values[0], values[1], values[2], values[3]});
     }
 
     return data;

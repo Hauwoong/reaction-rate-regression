@@ -36,7 +36,7 @@ void DataSet::delete_record(int index)
 
 Vector Record::factors() const
 {
-    return { temperature, (double)number_of_shakes, elapsed_time };
+    return { temperature, catalyst_mass, h2o2_conc };
 }
 
 double Record::get(Column c) const
@@ -45,12 +45,12 @@ double Record::get(Column c) const
     {
         case TEMP:
             return temperature;
-        case SHAKES:
-            return static_cast<double>(number_of_shakes);
-        case ELAPSED:
-            return elapsed_time;
-        case LOSS:
-            return mass_reduction;
+        case CATALYST:
+            return catalyst_mass;
+        case H2O2:
+            return h2o2_conc;
+        case RATE:
+            return o2_rate;
         default:
             throw std::invalid_argument("Invalid column");
     }
@@ -59,11 +59,11 @@ double Record::get(Column c) const
 std::ostream& operator<<(std::ostream& os, const Record& record)
 {
     os << "Record(temperature: " << record.temperature
-       << ", number_of_shakes: " << record.number_of_shakes
-       << ", elapsed_time: " << record.elapsed_time
-       << ", mass_reduction: " << record.mass_reduction
+       << ", catalyst_mass: " << record.catalyst_mass
+       << ", h2o2_conc: " << record.h2o2_conc
+       << ", o2_rate: " << record.o2_rate
        << ")";
-    return os; 
+    return os;
 }
 
 Matrix DataSet::design_matrix() const
@@ -81,7 +81,7 @@ Vector DataSet::response() const
     Vector result;
     for (const auto& record : records)
     {
-        result.push_back(record.mass_reduction);
+        result.push_back(record.o2_rate);
     }
     return result;
 }

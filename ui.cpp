@@ -46,15 +46,15 @@ void print_menu()
 {
     std::cout << "\n";
     std::cout << "  ╔══════════════════════════════════════════╗\n";
-    std::cout << "  ║   CO2 Solubility Predictor v1.0          ║\n";
-    std::cout << "  ║   탄산음료 CO2 용해도 예측 시스템        ║\n";
+    std::cout << "  ║   H2O2 Decomposition Rate Predictor v1.0 ║\n";
+    std::cout << "  ║   과산화수소 분해 속도 예측 시스템       ║\n";
     std::cout << "  ╠══════════════════════════════════════════╣\n";
     std::cout << "  ║                                          ║\n";
     std::cout << "  ║   [1] 실험 데이터 입력                   ║\n";
     std::cout << "  ║   [2] 저장된 데이터 조회                 ║\n";
     std::cout << "  ║   [3] 회귀 모델 생성                     ║\n";
-    std::cout << "  ║   [4] CO2 잔존량 예측                    ║\n";
-    std::cout << "  ║   [5] 최적 보관 조건 탐색                ║\n";
+    std::cout << "  ║   [4] 산소 발생 속도 예측                ║\n";
+    std::cout << "  ║   [5] 최적 반응 조건 탐색                ║\n";
     std::cout << "  ║   [6] 실험 가이드 출력                   ║\n";
     std::cout << "  ║   [7] CSV 내보내기                       ║\n";
     std::cout << "  ║   [0] 종료                               ║\n";
