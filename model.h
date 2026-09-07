@@ -3,9 +3,7 @@
 #include <vector>
 #include <array>
 #include <string>
-
-using Vector = std::vector<double>;
-using Matrix = std::vector<Vector>;
+#include "linalg.h"
 
 enum Column
 {
