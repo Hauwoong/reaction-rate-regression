@@ -1,9 +1,93 @@
 #include <iostream>
+#include <cmath>
 #include <windows.h>
 #include "model.h"
 #include "storage.h"
 #include <string>
 #include "ui.h"
+#include "regression.h"
+
+void menu_regression(DataSet& data, Model& model)
+{
+    std::cout << "\n  ── 다중 선형 회귀 분석 ───────────────\n\n";
+    std::cout << "  데이터 건수: " << data.size() << "건\n";
+    std::cout << "  변인 수    : 3개 (온도, 촉매 질량, H2O2 농도)\n";
+
+    try
+    {
+        model = fit(data);
+        std::cout << "\n  ✓ 회귀 모델 생성 완료!\n";
+    }
+    catch (const NotEnoughData&)
+    {
+        std::cout << "\n  ✗ 최소 " << COLUMN_COUNT << "건의 데이터가 필요합니다.\n";
+        return;
+    }
+    catch (const SingularMatrix&)
+    {
+        std::cout << "\n  ✗ 변인 중 하나가 고정되어 있거나, 두 변인이 함께 움직였습니다.\n";
+        return;
+    }
+    catch (const ConstantResponse&)
+    {
+        std::cout << "\n  ✗ 산소 발생 속도가 모두 같습니다. 측정값을 확인하세요.\n";
+        return;
+    }
+    
+    std::cout << "\n  ── 회귀 계수 ─────────────────────────\n\n";
+    std::cout << "  속도(mL/s) = β0 + β1×온도 + β2×촉매 + β3×농도\n\n";
+
+    const char* CNAMES[] = {"절편", "온도", "촉매", "농도"};
+    const char* CUNITS[] = {"", "°C", "g", "M"};
+
+    for (size_t i = 0; i < model.coefficients.size(); ++i)
+    {
+        double v = model.coefficients[i];
+        std::string sign = (v >= 0) ? "+" : "";      // 음수는 '-'가 자동으로 붙는다
+        std::string label = "β" + std::to_string(i) + " (" + CNAMES[i] + ")";
+
+        std::cout << "    " << pad(label, 12) << " = " << sign << to_fixed(v, 4);
+
+        if (i > 0)      // 절편에는 "1단위 증가" 설명이 없다
+            std::cout << "   ← " << CNAMES[i] << " 1" << CUNITS[i]
+                      << " 증가 시 " << sign << to_fixed(v, 3) << " mL/s";
+
+        std::cout << "\n";
+    }
+
+    std::cout << "\n  ── 모델 정확도 ───────────────────────\n\n";
+    std::cout << "    R² (결정계수) = " << to_fixed(model.r2, 4) << "\n";
+    std::cout << "    RMSE          = " << to_fixed(model.rmse, 4) << "\n";
+
+    std::cout << "\n  ── 변인 영향도 (실험 범위 기준) ──────\n\n";
+
+    auto r = data.ranges();
+
+    int    best        = 0;
+    double best_impact = -1.0;
+
+    for (int c = 0; c < COLUMN_COUNT - 1; ++c)   // 마지막 열(속도)은 출력이라 제외
+    {
+        double beta   = model.coefficients[c + 1];   // [0]은 절편이라 한 칸 밀림
+        double span   = r[c].hi - r[c].lo;
+        double impact = std::abs(beta) * span;
+
+        if (impact > best_impact)
+        {
+            best_impact = impact;
+            best = c;
+        }
+
+        std::cout << "    " << pad(CNAMES[c + 1], 6)
+                  << " : "  << pad(to_fixed(std::abs(beta), 4), 7, true)
+                  << " × "  << pad(to_fixed(span, 2), 6, true)
+                  << " "    << pad(CUNITS[c + 1], 3)
+                  << " = "  << pad(to_fixed(impact, 3), 7, true) << " mL/s\n";
+    }
+
+    std::cout << "\n  → 이 실험 범위에서는 " << CNAMES[best + 1] << "의 영향이 가장 큽니다.\n";
+    std::cout << "     계수 크기만으로 비교하면 안 됩니다 — 변인마다 단위와 변화 폭이 다릅니다.\n";
+}
 
 void menu_view_data(DataSet& data)
 {
@@ -266,12 +350,14 @@ void menu_input_data(DataSet& data)
     }
 }
 
+
 int main()
 {
     SetConsoleOutputCP(CP_UTF8);
     ensure_directories();
 
     DataSet data;
+    Model model;
 
     while (true)
     {
@@ -296,7 +382,7 @@ int main()
         }
         else if (s == "3")
         {
-
+            menu_regression(data, model);
         }
         else if (s == "4")
         {
