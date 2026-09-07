@@ -89,6 +89,65 @@ void menu_regression(DataSet& data, Model& model)
     std::cout << "     계수 크기만으로 비교하면 안 됩니다 — 변인마다 단위와 변화 폭이 다릅니다.\n";
 }
 
+void menu_predict(const DataSet& data, const Model& model)
+{
+    std::cout << "\n  ── 산소 발생 속도 예측 ───────────────\n";
+
+    if (model.coefficients.empty())
+    {
+        std::cout << "\n  ✗ 먼저 [3] 에서 회귀 모델을 생성하세요.\n";
+        return;
+    }
+
+    const char* FNAMES[] = {"온도", "촉매 질량", "H2O2 농도"};
+    const char* FUNITS[] = {"°C", "g", "M"};
+    const int   FDIGITS[] = {1, 2, 2};
+
+    auto range = data.ranges();
+
+    try
+    {
+        while (true)
+        {
+            std::cout << "\n  조건을 입력하세요:\n";
+
+            Vector factors = {
+                read_double("온도 (°C)              "),
+                read_double("촉매 질량 (g)          "),
+                read_double("H2O2 초기 농도 (M)     ")
+            };
+
+            // 실험 범위를 벗어나면 외삽이라 신뢰할 수 없다
+            for (int c = 0; c < COLUMN_COUNT - 1; ++c)
+            {
+                if (factors[c] < range[c].lo || factors[c] > range[c].hi)
+                {
+                    std::cout << "\n  ! " << FNAMES[c] << " " << to_fixed(factors[c], FDIGITS[c])
+                              << " " << FUNITS[c] << " 는 실험 범위("
+                              << to_fixed(range[c].lo, FDIGITS[c]) << " ~ "
+                              << to_fixed(range[c].hi, FDIGITS[c]) << ")를 벗어납니다.";
+                }
+            }
+
+            double rate = model.predict(factors);
+
+            std::cout << "\n\n  ── 예측 결과 ─────────────────────────\n\n";
+            std::cout << "    예측 산소 발생 속도: " << to_fixed(rate, 3) << " mL/s\n";
+
+            if (rate < 0.0)
+                std::cout << "\n  ! 예측값이 음수입니다. 실제로는 반응이 거의 일어나지 않는 조건이거나,\n"
+                          << "    모델이 이 조건을 설명하지 못하는 것입니다.\n";
+
+            if (!ask_yes_no("\n  다른 조건으로 다시 예측?"))
+                return;
+        }
+    }
+    catch (const InputCancelled&)
+    {
+        std::cout << "\n  입력이 취소되었습니다.\n";
+    }
+}
+
 void menu_view_data(DataSet& data)
 {
     while (true)
@@ -386,7 +445,7 @@ int main()
         }
         else if (s == "4")
         {
-
+            menu_predict(data, model);
         }
         else if (s == "5")
         {
