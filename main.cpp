@@ -9,6 +9,126 @@
 #include "regression.h"
 #include "optimizer.h"
 
+void menu_experiment_guide(const DataSet& data)
+{
+    std::cout << "\n  ── 실험 설계 가이드 ──────────────────\n\n";
+    std::cout << "  회귀 모델의 신뢰도를 높이기 위한\n";
+    std::cout << "  최소 실험 조건 조합을 추천합니다.\n";
+
+    const char* GNAMES[] = {"온도 (°C)     ", "촉매 (g)      ", "H2O2 (M)      "};
+    const char* GUNITS[] = {"°C", "g", "M"};
+    const int GDIGITS[] = {1,2,2};
+
+    const double DEF_LO[] = {20.0, 0.10, 0.5};
+    const double DEF_HI[] = {50.0, 0.40, 2.0};
+
+    auto r = data.ranges();
+    bool has_data = (data.size() > 0);
+
+    Matrix levels;
+
+    for (int c = 0; c < COLUMN_COUNT - 1; ++c)
+    {
+    double def_lo = has_data ? r[c].lo : DEF_LO[c];
+    double def_hi = has_data ? r[c].hi : DEF_HI[c];
+
+    double lo = read_double(std::string(GNAMES[c]) + "최소", def_lo);
+    double hi = read_double(std::string(GNAMES[c]) + "최대", def_hi);
+
+    if (lo > hi)
+        std::swap(lo, hi);        // menu_optimize 처럼 물어봐도 됩니다
+
+    double step = (hi - lo) / 3.0;    // 4개 점 → 3등분
+
+    Vector v;
+    for (int k = 0; k < 4; ++k)
+        v.push_back(lo + k * step);
+
+    levels.push_back(v);
+    }
+
+    std::cout << "\n  변인 수준 설정:\n";
+
+    for (int c = 0; c < COLUMN_COUNT - 1; ++c)
+    {
+        std::cout << "    " << pad(GNAMES[c], 14) << ": ";
+
+        for (int k = 0; k < 4; ++k)
+        {
+            std::cout << to_fixed(levels[c][k], GDIGITS[c]);
+            if (k < 3) std::cout << ", ";
+        }
+
+        std::cout << " " << GUNITS[c] << "  (4수준)\n";
+    }
+
+    std::cout << "\n  ── 추천 실험 계획 (부분 요인 설계) ───\n\n";
+    std::cout << "  총 추천 실험 수: 16회\n";
+    std::cout << "  (완전 요인 설계 64회 중 핵심 조합)\n\n";
+
+    // 라틴방격으로 16개 조합 생성 — 이 규칙은 여기 한 곳에만 있다
+    DataSet plan;
+
+    for (int i = 0; i < 4; ++i)
+        for (int j = 0; j < 4; ++j)
+        {
+            int k = (i + j) % 4;
+            plan.add_record({levels[0][i], levels[1][j], levels[2][k], 0.0});
+            //                                                          ↑ 속도는 실험 후에 채운다
+        }
+
+    std::vector<int> W = {6, 8, 10, 10};
+
+    print_table_line(W, "┌", "┬", "┐");
+    print_table_row (W, {"번호", "온도°C", "촉매(g)", "H2O2(M)"});
+    print_table_line(W, "├", "┼", "┤");
+
+    for (int n = 1; n <= plan.size(); ++n)
+    {
+        const Record& p = plan.get_record(n);
+        print_table_row(W, {
+            std::to_string(n),
+            to_fixed(p.temperature, GDIGITS[0]),
+            to_fixed(p.catalyst_mass, GDIGITS[1]),
+            to_fixed(p.h2o2_conc, GDIGITS[2])
+        }, true);
+    }
+
+    print_table_line(W, "└", "┴", "┘");
+
+    std::cout << "\n  이 표를 출력해서 실험할 때 체크리스트로 사용하세요.\n";
+
+    if (!ask_yes_no("\n  이 계획을 CSV로 저장할까요?"))
+        return;
+
+    std::cout << "  저장할 파일명: ";
+
+    std::string filename;
+
+    if (!std::getline(std::cin, filename))
+        return;
+
+    filename = trim(filename);
+
+    if (filename.empty())
+    {
+        std::cout << "  ✗ 파일명을 입력하지 않아 저장하지 않았습니다.\n";
+        return;
+    }
+
+    try
+    {
+        save_csv(plan, "data/" + filename);
+        std::cout << "  ✓ 저장 완료: ./data/" << with_csv_extension(filename) << "\n";
+        std::cout << "     실험 후 o2_rate_mL_s 열을 채워서 [1] → [2] 로 불러오세요.\n";
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "  ✗ 저장 실패: " << e.what() << "\n";
+    }
+
+}
+
 void menu_optimize(const DataSet& data, const Model& model)
 {
     std::cout << "\n  ── 최적 반응 조건 탐색 ───────────────\n";
@@ -651,7 +771,14 @@ int main()
         }
         else if (s == "6")
         {
-
+            try
+            {
+                menu_experiment_guide(data);
+            }
+            catch (const InputCancelled&)
+            {
+                std::cout << "\n  입력이 취소되었습니다.\n";
+            }
         }
         else if (s == "7")
         {
