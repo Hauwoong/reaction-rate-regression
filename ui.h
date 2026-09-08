@@ -10,6 +10,7 @@ std::string trim(const std::string& s);
 
 void print_menu();
 double read_double(const std::string& label);
+double read_double(const std::string& label, double default_value);
 int read_int(const std::string& label);
 bool ask_yes_no(const std::string& label);
 

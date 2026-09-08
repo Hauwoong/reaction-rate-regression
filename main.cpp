@@ -1,11 +1,202 @@
 #include <iostream>
 #include <cmath>
 #include <windows.h>
+#include <string>
+#include <algorithm>
 #include "model.h"
 #include "storage.h"
-#include <string>
 #include "ui.h"
 #include "regression.h"
+#include "optimizer.h"
+
+void menu_optimize(const DataSet& data, const Model& model)
+{
+    std::cout << "\n  ── 최적 반응 조건 탐색 ───────────────\n";
+
+    if (data.size() == 0)
+    {
+        std::cout << "\n  ✗ 데이터가 없습니다. [1] 메뉴에서 먼저 입력하세요.\n";
+        return;
+    }
+
+    if (model.coefficients.empty())
+    {
+        std::cout << "\n  ✗ 먼저 [3] 에서 회귀 모델을 생성하세요.\n";
+        return;
+    }
+
+    auto r = data.ranges();
+
+    const char* FNAMES[] = {"온도 (°C)     ", "촉매 (g)      ", "H2O2 (M)      "};
+
+    std::vector<Range> bounds;
+
+    for (int c = 0; c < COLUMN_COUNT - 1; ++c)
+    {
+        double lo = read_double(std::string(FNAMES[c]) + "최소", r[c].lo);
+        double hi = read_double(std::string(FNAMES[c]) + "최대", r[c].hi);
+
+        if (lo > hi)
+        {
+            std::cout << "\n  ✗ 최솟값이 최댓값보다 더 큽니다!\n";
+            std::cout << "  최댓값과 최솟값을 서로 바꾸겠습니까? 아니면 다시 원래 화면으로 돌아가겠습니까?.\n";
+
+            if (ask_yes_no("  바꾸려면 / 되돌아가려면"))
+                std::swap(lo,hi);
+            
+            else
+                return;
+        }
+
+        if (lo < r[c].lo || hi > r[c].hi)
+            std::cout << "  ! 실험 범위(" << r[c].lo << "~" << r[c].hi << ")를 벗어난 구간이 포함됩니다. 예측이 부정확할 수 있습니다.\n";
+
+        bounds.push_back({lo, hi});
+    }
+
+    int divisions = read_int("탐색 분할 수 (권장 20)");
+
+    while (divisions < 1 || divisions > 100)
+    {
+        std::cout << "      1 ~ 100 사이로 입력하세요.\n";
+        divisions = read_int("탐색 분할 수 (권장 20)"); 
+    }
+
+    int points = divisions + 1;
+    std::cout << "\n  → " << points << " × " << points << " × " << points
+          << " = " << (points * points * points) << "개 조합을 탐색합니다.\n";
+
+    // 4. 탐색 모드 선택
+    int    mode   = 0;
+    double target = 0.0;      // 모드 2, 3 에서만 쓰인다
+
+    while (true)
+    {
+        std::cout << "\n  탐색 모드를 선택하세요:\n";
+        std::cout << "    [1] 반응 속도가 가장 빠른 조건\n";
+        std::cout << "    [2] 목표 속도에 가장 가까운 조건\n";
+        std::cout << "    [3] 목표 속도 이상이면서 촉매를 가장 적게 쓰는 조건\n";
+        std::cout << "    [0] 메인 메뉴\n";
+        std::cout << "  >> 선택: ";
+
+        std::string line;
+
+        if (!std::getline(std::cin, line))
+            return;
+
+        std::string s = trim(line);
+
+        if (s == "0")
+            return;
+
+        if (s == "1" || s == "2" || s == "3")
+        {
+            mode = std::stoi(s);
+
+            if (mode != 1)      // 모드 1은 목표값이 필요 없다
+                target = read_double("목표 산소 발생 속도 (mL/s)");
+
+            break;
+        }
+
+        std::cout << "      0 ~ 3 중에서 선택하세요.\n";
+    }
+
+    // 5. 탐색
+    std::vector<Candidate> all = grid_search(model, bounds, divisions);
+
+    // 6. 모드별 정렬 / 필터
+    if (mode == 1)
+    {
+        std::sort(all.begin(), all.end(),
+                  [](const Candidate& a, const Candidate& b) { return a.rate > b.rate; });
+    }
+    else if (mode == 2)
+    {
+        std::sort(all.begin(), all.end(),
+                  [target](const Candidate& a, const Candidate& b)
+                  { return std::abs(a.rate - target) < std::abs(b.rate - target); });
+    }
+    else
+    {
+        std::vector<Candidate> ok;
+
+        for (const auto& c : all)
+            if (c.rate >= target)
+                ok.push_back(c);
+
+        if (ok.empty())
+        {
+            std::cout << "\n  ✗ 이 탐색 범위에서는 " << to_fixed(target, 3)
+                      << " mL/s 이상을 낼 수 없습니다.\n";
+            std::cout << "     범위를 넓히거나 목표를 낮춰보세요.\n";
+            return;
+        }
+
+        std::sort(ok.begin(), ok.end(),
+                  [](const Candidate& a, const Candidate& b)
+                  {
+                      if (a.factors[1] != b.factors[1])
+                          return a.factors[1] < b.factors[1];   // 1순위: 촉매 적은 순
+
+                      return a.rate > b.rate;                    // 2순위: 속도 빠른 순
+                  });
+
+        all = ok;
+    }
+
+    // 7. 결과 표
+    std::cout << "\n  ── 결과: Top 5 ───────────────────────\n\n";
+
+    std::vector<int> W = {6, 8, 11, 11, 14};
+
+    print_table_line(W, "┌", "┬", "┐");
+    print_table_row (W, {"순위", "온도°C", "촉매(g)", "H2O2(M)", "속도(mL/s)"});
+    print_table_line(W, "├", "┼", "┤");
+
+    for (size_t i = 0; i < 5 && i < all.size(); ++i)
+    {
+        const Candidate& c = all[i];
+        print_table_row(W, {
+            std::to_string(i + 1),
+            to_fixed(c.factors[0], 1),
+            to_fixed(c.factors[1], 3),
+            to_fixed(c.factors[2], 3),
+            to_fixed(c.rate, 3)
+        }, true);
+    }
+
+    print_table_line(W, "└", "┴", "┘");
+
+    // 8. 모드별 결론
+    const Candidate& top = all.front();
+
+    if (mode == 1)
+    {
+        std::cout << "\n  → 가장 빠른 조건은 " << to_fixed(top.factors[0], 1) << " °C, "
+                  << to_fixed(top.factors[1], 3) << " g, "
+                  << to_fixed(top.factors[2], 3) << " M 에서 "
+                  << to_fixed(top.rate, 3) << " mL/s 입니다.\n";
+        std::cout << "     세 계수가 모두 양수라 탐색 범위의 최댓값 쪽이 답이 됩니다.\n";
+    }
+    else if (mode == 2)
+    {
+        std::cout << "\n  → 목표 " << to_fixed(target, 3) << " mL/s 에 가장 가까운 조건은 "
+                  << to_fixed(top.factors[0], 1) << " °C, "
+                  << to_fixed(top.factors[1], 3) << " g, "
+                  << to_fixed(top.factors[2], 3) << " M (오차 "
+                  << to_fixed(std::abs(top.rate - target), 3) << " mL/s) 입니다.\n";
+        std::cout << "     서로 다른 조합이 비슷한 속도를 내므로, 실험 여건에 맞는 것을 고르세요.\n";
+    }
+    else
+    {
+        std::cout << "\n  → 목표 " << to_fixed(target, 3) << " mL/s 를 달성하는 최소 촉매량은 "
+                  << to_fixed(top.factors[1], 3) << " g 입니다.\n";
+        std::cout << "     이때 조건은 " << to_fixed(top.factors[0], 1) << " °C, "
+                  << to_fixed(top.factors[2], 3) << " M 이고 예측 속도는 "
+                  << to_fixed(top.rate, 3) << " mL/s 입니다.\n";
+    }
+}
 
 void menu_regression(DataSet& data, Model& model)
 {
@@ -449,7 +640,14 @@ int main()
         }
         else if (s == "5")
         {
-
+            try
+            {
+                menu_optimize(data, model);
+            }
+            catch (const InputCancelled&)
+            {
+                std::cout << "\n  입력이 취소되었습니다.\n";
+            }
         }
         else if (s == "6")
         {

@@ -1,3 +1,4 @@
+#include "ui.h"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -5,10 +6,6 @@
 #include <vector>
 
 const int W[] = {5, 8, 10, 10, 12};
-
-struct InputCancelled {};
-
-
 
 int display_width(const std::string& s)
 {
@@ -93,6 +90,33 @@ double read_double(const std::string& label)
             std::cout << "숫자로 입력하세요.\n";
         }
         
+    }
+}
+
+double read_double(const std::string& label, double default_value)
+{
+    while (true)
+    {
+        std::cout << "  " << label << " [" << to_fixed(default_value, 2) << "]: ";
+
+        std::string line;
+        if (!std::getline(std::cin, line))
+            throw InputCancelled {};
+        
+        line = trim(line);
+
+        if (line.empty())
+            return default_value;
+
+        try
+        {
+            return std::stod(line);
+        }
+        catch(const std::exception& e)
+        {
+            std::cout << "      숫자로 입력하세요.\n";
+        }
+           
     }
 }
 
