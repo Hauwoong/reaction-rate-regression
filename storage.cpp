@@ -8,6 +8,38 @@
 
 namespace fs = std::filesystem;
 
+static void write_row(std::ofstream& file, const std::vector<std::string>& cells)
+{
+    for (size_t i = 0; i < cells.size(); ++i)
+    {
+        file << cells[i];
+
+        if (i + 1 < cells.size())
+            file << ",";
+    }
+
+    file << "\n";
+}
+
+void write_csv(const std::string& path, const std::vector<std::string>& header, const std::vector<std::vector<std::string>>& rows)
+{
+    for (const auto& row : rows)
+        if (row.size() != header.size())
+            throw std::invalid_argument("write_csv: 행의 칸 수가 헤더와 다릅니다");
+
+    std::string full = with_csv_extension(path);
+
+    std::ofstream file(full);
+
+    if (!file.is_open())
+        throw std::runtime_error("Failed to open file for writing: " + full);
+    
+    write_row(file, header);
+
+    for (const auto& row: rows)
+        write_row(file, row);
+}
+
 std::string with_csv_extension(const std::string& filename)
 {
     std::string lower = filename;

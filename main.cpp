@@ -9,6 +9,197 @@
 #include "regression.h"
 #include "optimizer.h"
 
+static void export_data(const DataSet& data, const std::string& stem)
+{
+    if (data.size() == 0)
+    {
+        std::cout << "\n  ✗ 데이터가 없습니다.\n";
+        return;
+    }
+
+    save_csv(data, "output/" + stem + "_data.csv");
+    std::cout << "    ✓ ./output/" << stem << "_data.csv\n";
+}
+
+static void export_regression(const DataSet& data, const Model& model, const std::string& stem)
+{   
+    if (data.size() == 0)
+    {
+        std::cout << "\n  ✗ 데이터가 없습니다.\n";
+        return;
+    }
+
+    if (model.coefficients.empty())
+    {
+        std::cout << "  ✗ 회귀 모델이 없습니다. [3] 을 먼저 실행하세요.\n";
+        return;
+    }
+
+    const char* VARS[] = {"intercept", "temperature_C", "catalyst_g", "h2o2_M"};
+
+    auto r = data.ranges();
+
+    std::vector<std::vector<std::string>> rows;
+
+    for (size_t i = 0; i < model.coefficients.size(); ++i)
+    {
+        // |β| × 실험 범위 — 단위가 다른 계수를 공정하게 비교하기 위한 값
+        std::string influence = "";      // 절편은 영향도가 없다
+
+        if (i > 0)
+        {
+            double span = r[i - 1].hi - r[i - 1].lo;   // coefficients[0]이 절편이라 한 칸 밀림
+            influence = to_fixed(std::abs(model.coefficients[i]) * span, 10);
+        }
+
+        rows.push_back({"beta" + std::to_string(i), VARS[i],
+                        to_fixed(model.coefficients[i], 10), influence});
+    }
+
+    // 지표 행도 헤더와 칸 수를 맞춰야 한다 (영향도는 빈 칸)
+    rows.push_back({"metric", "r_squared", to_fixed(model.r2, 10), ""});
+    rows.push_back({"metric", "rmse", to_fixed(model.rmse, 10), ""});
+    rows.push_back({"metric", "n_samples", std::to_string(model.fitted.size()), ""});
+
+    write_csv("output/" + stem + "_regression.csv",
+              {"term", "variable", "value", "influence"}, rows);
+
+    std::cout << "    ✓ ./output/" << stem << "_regression.csv\n";
+}
+
+static void export_prediction(const DataSet& data, const Model& model, const std::string& stem)
+{
+    if (model.fitted.size() != static_cast<size_t>(data.size()))
+    {
+        std::cout << "  ✗ 데이터가 변경되었습니다. [3] 에서 회귀 모델을 다시 생성하세요.\n";
+        return;
+    }
+
+    std::vector<std::vector<std::string>> rows;
+
+    for (int i = 1; i <= data.size(); ++i)
+    {
+        const Record& rec = data.get_record(i);
+
+        rows.push_back({
+            to_fixed(rec.temperature, 10),
+            to_fixed(rec.catalyst_mass, 10),
+            to_fixed(rec.h2o2_conc, 10),
+            to_fixed(rec.o2_rate, 10),
+            to_fixed(model.fitted[i -1], 10),
+            to_fixed(model.residuals[i - 1], 10)
+        });
+    }
+
+    write_csv("output/" + stem + "_prediction.csv", {"temperature_C", "catalyst_g", "h2o2_M", "o2_rate_mL_s", "predicted", "residual"}, rows);
+
+    std::cout << "    ✓ ./output/" << stem << "_prediction.csv\n";
+}
+
+static void export_surface(const DataSet& data, const Model& model, const std::string& stem)
+{
+    if (data.size() == 0)
+    {
+        std::cout << "  ✗ 데이터가 없습니다.\n";
+        return;
+    }
+
+    if (model.coefficients.empty())
+    {
+        std::cout << "  ✗ 회귀 모델이 없습니다. [3] 을 먼저 실행하세요.\n";
+        return;
+    }
+
+    auto r = data.ranges();
+    std::vector<Range> bounds(r.begin(), r.begin() + 3);   // array 4개 → vector 3개
+
+    auto grid = grid_search(model, bounds, 20);            // 21³ = 9,261개
+
+    std::vector<std::vector<std::string>> rows;
+
+    for (const auto& c : grid)
+        rows.push_back({
+            to_fixed(c.factors[0], 10),
+            to_fixed(c.factors[1], 10),
+            to_fixed(c.factors[2], 10),
+            to_fixed(c.rate, 10)
+        });
+
+    write_csv("output/" + stem + "_surface.csv",
+              {"temperature_C", "catalyst_g", "h2o2_M", "predicted"},
+              rows);
+
+    std::cout << "    ✓ ./output/" << stem << "_surface.csv  (" << rows.size() << "행)\n";
+}
+
+void menu_export(const DataSet& data, const Model& model)
+{
+    std::cout << "\n  ── CSV 내보내기 ──────────────────────\n";
+
+    std::string choice;
+
+    while (true)
+    {
+        std::cout << "\n  내보낼 항목을 선택하세요:\n";
+        std::cout << "    [1] 원본 실험 데이터\n";
+        std::cout << "    [2] 회귀 결과 (계수 + 정확도 + 영향도)\n";
+        std::cout << "    [3] 예측값 포함 데이터 (실측 vs 예측)\n";
+        std::cout << "    [4] 3D 표면용 격자 데이터\n";
+        std::cout << "    [5] 전체 내보내기\n";
+        std::cout << "    [0] 메인 메뉴\n";
+        std::cout << "  >> 선택: ";
+
+        std::string line;
+
+        if (!std::getline(std::cin, line))
+            return;
+
+        choice = trim(line);
+
+        if (choice == "0")
+            return;
+
+        if (choice == "1" || choice == "2" || choice == "3" || choice == "4" || choice == "5")
+            break;
+
+        std::cout << "      0 ~ 5 중에서 선택하세요.\n";
+    }
+
+    std::cout << "\n  파일명 (확장자 없이): ";
+
+    std::string stem;
+
+    if (!std::getline(std::cin, stem))
+        return;
+
+    stem = trim(stem);
+
+    if (stem.empty())
+    {
+        std::cout << "  ✗ 파일명을 입력하지 않아 저장하지 않았습니다.\n";
+        return;
+    }
+
+    bool all = (choice == "5");
+
+    std::cout << "\n";
+
+    try
+    {
+        if (all || choice == "1") export_data(data, stem);
+        if (all || choice == "2") export_regression(data, model, stem);
+        if (all || choice == "3") export_prediction(data, model, stem);
+        if (all || choice == "4") export_surface(data, model, stem);
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "  ✗ 저장 실패: " << e.what() << "\n";
+        return;
+    }
+
+    std::cout << "\n  → 이 파일들을 MATLAB에서 불러와 시각화하세요.\n";
+}
+
 void menu_experiment_guide(const DataSet& data)
 {
     std::cout << "\n  ── 실험 설계 가이드 ──────────────────\n\n";
@@ -782,7 +973,14 @@ int main()
         }
         else if (s == "7")
         {
-
+            try
+            {
+                menu_export(data, model);
+            }
+            catch (const InputCancelled&)
+            {
+                std::cout << "\n  입력이 취소되었습니다.\n";
+            }
         }
         else if (s == "0")
         {
