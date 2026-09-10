@@ -14,10 +14,17 @@
 
 #include <iostream>
 #include <cmath>
-#include <windows.h>
 #include <string>
 #include <algorithm>
 #include <filesystem>
+
+// 이 프로그램에서 운영체제에 의존하는 부분은 여기 하나뿐이다.
+// Windows 콘솔은 기본 코드 페이지가 UTF-8 이 아니라서 한글과 박스 문자가
+// 깨지므로 시작할 때 바꿔 줘야 한다. macOS·Linux 터미널은 이미 UTF-8 이라
+// 아무것도 하지 않아도 된다.
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include "model.h"
 #include "storage.h"
 #include "ui.h"
@@ -953,7 +960,9 @@ void menu_input_data(DataSet& data)
 
 int main()
 {
+#ifdef _WIN32
     SetConsoleOutputCP(CP_UTF8);
+#endif
     ensure_directories();
 
     DataSet data;

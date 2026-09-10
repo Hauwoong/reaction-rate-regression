@@ -27,27 +27,53 @@ v = β₀ + β₁·T + β₂·C + β₃·H
 
 ## 2. 빌드와 실행
 
+**Windows, macOS, Linux 어디서나 동작합니다.** 표준 C++만 쓰며, 운영체제에 의존하는 코드는 `main.cpp` 의 콘솔 UTF-8 설정 두 줄뿐입니다 (`#ifdef _WIN32` 로 분기).
+
 ### 필요한 것
-- C++20을 지원하는 컴파일러 (개발 환경: g++ 16.1.0, MinGW-W64)
+- C++20을 지원하는 컴파일러
+  - Windows: g++ 13 이상 (MinGW-W64) 또는 MSVC 2022
+  - macOS: Xcode Command Line Tools (`xcode-select --install`) — macOS 10.15 이상
+  - Linux: g++ 13 이상 또는 clang 16 이상
 - 시각화용 MATLAB (선택 — 프로그램 자체는 없어도 동작)
 
 ### 빌드
 
+**Windows**
 ```powershell
-g++ -std=c++20 -Wall main.cpp model.cpp storage.cpp ui.cpp linalg.cpp regression.cpp optimizer.cpp -o co2.exe
+build.bat
 ```
 
-빠르게 돌리려면 `-O2` 를 추가하세요. 격자 탐색이 2~4배 빨라집니다.
+**macOS / Linux**
+```bash
+chmod +x build.sh    # 처음 한 번만
+./build.sh
+```
+
+스크립트 없이 직접 치려면:
+```bash
+g++ -std=c++20 -O2 -Wall main.cpp model.cpp storage.cpp ui.cpp linalg.cpp regression.cpp optimizer.cpp -o co2
+```
+
+`-O2` 는 격자 탐색을 2~4배 빠르게 합니다.
 
 ### 실행
 
 ```powershell
-.\co2.exe
+.\co2.exe        # Windows
+```
+```bash
+./co2            # macOS / Linux
 ```
 
 첫 실행 시 `data/` 와 `output/` 폴더가 자동으로 만들어집니다.
 
-> **한글이 깨진다면** 콘솔 글꼴을 `D2Coding`, `NanumGothicCoding` 등 한글을 포함한 고정폭 글꼴로 바꾸세요. 프로그램은 시작할 때 코드 페이지를 UTF-8로 바꾸지만, 글꼴에 글자가 없으면 표시되지 않습니다.
+### 한글이 깨진다면
+
+**Windows** — 콘솔 글꼴을 `D2Coding`, `NanumGothicCoding` 등 한글을 포함한 고정폭 글꼴로 바꾸세요. 프로그램이 코드 페이지는 UTF-8로 바꾸지만, 글꼴에 글자가 없으면 표시되지 않습니다.
+
+**macOS** — 기본 터미널은 UTF-8이라 대개 문제없습니다. 표가 어긋나면 터미널 환경설정 → 텍스트에서 글꼴을 `D2Coding`, `SF Mono`, `Menlo` 등으로 바꿔 보세요.
+
+> 표 정렬은 한글 한 글자를 **정확히 2칸**으로 그리는 고정폭 글꼴을 전제로 합니다. 편집기나 브라우저처럼 비율 글꼴로 보면 어긋나 보이는 것이 정상입니다.
 
 ---
 
