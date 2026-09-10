@@ -17,6 +17,7 @@
 #include <windows.h>
 #include <string>
 #include <algorithm>
+#include <filesystem>
 #include "model.h"
 #include "storage.h"
 #include "ui.h"
@@ -32,7 +33,7 @@ static void export_data(const DataSet& data, const std::string& stem)
     }
 
     save_csv(data, "output/" + stem + "_data.csv");
-    std::cout << "    ✓ ./output/" << stem << "_data.csv\n";
+    std::cout << "    ✓ " << stem << "_data.csv\n";
 }
 
 static void export_regression(const DataSet& data, const Model& model, const std::string& stem)
@@ -78,7 +79,7 @@ static void export_regression(const DataSet& data, const Model& model, const std
     write_csv("output/" + stem + "_regression.csv",
               {"term", "variable", "value", "influence"}, rows);
 
-    std::cout << "    ✓ ./output/" << stem << "_regression.csv\n";
+    std::cout << "    ✓ " << stem << "_regression.csv\n";
 }
 
 static void export_prediction(const DataSet& data, const Model& model, const std::string& stem)
@@ -107,7 +108,7 @@ static void export_prediction(const DataSet& data, const Model& model, const std
 
     write_csv("output/" + stem + "_prediction.csv", {"temperature_C", "catalyst_g", "h2o2_M", "o2_rate_mL_s", "predicted", "residual"}, rows);
 
-    std::cout << "    ✓ ./output/" << stem << "_prediction.csv\n";
+    std::cout << "    ✓ " << stem << "_prediction.csv\n";
 }
 
 static void export_surface(const DataSet& data, const Model& model, const std::string& stem)
@@ -143,7 +144,7 @@ static void export_surface(const DataSet& data, const Model& model, const std::s
               {"temperature_C", "catalyst_g", "h2o2_M", "predicted"},
               rows);
 
-    std::cout << "    ✓ ./output/" << stem << "_surface.csv  (" << rows.size() << "행)\n";
+    std::cout << "    ✓ " << stem << "_surface.csv  (" << rows.size() << "행)\n";
 }
 
 void menu_export(const DataSet& data, const Model& model)
@@ -196,7 +197,9 @@ void menu_export(const DataSet& data, const Model& model)
 
     bool all = (choice == "5");
 
-    std::cout << "\n";
+    // 절대 경로를 한 번만 찍는다. MATLAB 에서 이 폴더를 찾아가야 하므로
+    // "./output/" 처럼 모호한 표기로는 부족하다.
+    std::cout << "\n  저장 위치: " << std::filesystem::absolute("output").string() << "\n\n";
 
     try
     {
@@ -211,7 +214,8 @@ void menu_export(const DataSet& data, const Model& model)
         return;
     }
 
-    std::cout << "\n  → 이 파일들을 MATLAB에서 불러와 시각화하세요.\n";
+    std::cout << "\n  → MATLAB 에서 visualize.m 을 열어 맨 위 stem 을 다음으로 바꾸고 실행하세요:\n";
+    std::cout << "       stem = '" << stem << "';\n";
 }
 
 void menu_experiment_guide(const DataSet& data)
@@ -802,14 +806,27 @@ void input_manually(DataSet& data)
 
 void input_from_csv(DataSet& data)
 {
+    // 절대 경로로 보여준다. "data 폴더"라고만 하면 어디를 말하는지 알 수 없다.
+    std::string folder = std::filesystem::absolute("data").string();
+
     auto files = list_csv_files("data");
 
     if (files.empty())
     {
-        std::cout << "저장된 파일이 없습니다.\n";
+        std::cout << "\n  ✗ 불러올 CSV 파일이 없습니다.\n\n";
+        std::cout << "     아래 폴더에 CSV 파일을 넣은 뒤 다시 시도하세요:\n";
+        std::cout << "       " << folder << "\n\n";
+        std::cout << "     파일 형식 — 열 순서가 중요하며, 헤더 줄은 있어도 없어도 됩니다:\n";
+        std::cout << "       온도(°C), 촉매 질량(g), H2O2 초기 농도(M), 산소 발생 속도(mL/s)\n\n";
+        std::cout << "       20,0.10,0.5,1.68\n";
+        std::cout << "       30,0.10,0.5,1.87\n\n";
+        std::cout << "     엑셀에서 만들 때는 [CSV UTF-8 (쉼표로 분리)] 형식으로 저장하세요.\n";
+        std::cout << "     [6] 실험 가이드에서 빈 계획표를 만들어 채우는 방법도 있습니다.\n";
         return;
     }
-    
+
+    std::cout << "\n  " << folder << "\n\n";
+
     int index = 1;
 
     for (const auto& file : files)
