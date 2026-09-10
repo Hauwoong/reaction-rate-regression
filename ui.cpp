@@ -7,6 +7,14 @@
 
 const int W[] = {5, 8, 10, 10, 12};
 
+// UTF-8 은 첫 바이트만 보면 그 글자가 몇 바이트인지 알 수 있게 설계돼 있다.
+//   0xxxxxxx → 1바이트 (영문, 숫자)
+//   110xxxxx → 2바이트 (°, é 등)
+//   1110xxxx → 3바이트 (한글, 박스 문자)
+//   11110xxx → 4바이트 (이모지)
+// 글자마다 건너뛰는 바이트 수가 다르므로 i 를 for 헤더가 아니라 본문에서 더한다.
+// char 가 아니라 unsigned char 로 받는 것도 중요하다. char 는 대부분 부호가 있어
+// 한글 바이트가 음수가 되면 아래 비교가 전부 틀어진다.
 int display_width(const std::string& s)
 {
     int width = 0;
@@ -19,16 +27,18 @@ int display_width(const std::string& s)
         else if (c < 0xE0)  {width += 1; i += 2; }
         else if (c < 0xF0)
         {
-            if (i + 2 >= s.size())  { width += 1; i += 1; continue;}
+            // 3바이트에는 한글(2칸)과 박스 문자(1칸)가 섞여 있어 바이트 수만으로는
+            // 구분할 수 없다. 세 바이트에서 코드포인트를 조립해 범위를 본다.
+            if (i + 2 >= s.size())  { width += 1; i += 1; continue;}   // 잘린 문자 방어
 
             unsigned char b1 = s[i + 1];
             unsigned char b2 = s[i + 2];
 
             int cp = ((c & 0x0F) << 12) | ((b1 & 0x3F) << 6) | (b2 & 0x3F);
 
-            if (cp >= 0xAC00 && cp <= 0xD7A3)
+            if (cp >= 0xAC00 && cp <= 0xD7A3)     // 한글 완성형 (가 ~ 힣)
                 width += 2;
-            else
+            else                                   // 박스 문자(─│┌) 등은 1칸
                 width += 1;
 
             i += 3;
