@@ -31,6 +31,17 @@
 #include "regression.h"
 #include "optimizer.h"
 
+// ════════════════════════════════════════════════════════════════
+//  [7] CSV 내보내기에서 쓰는 파일 생성 함수 4개
+//
+//  모두 output/<stem>_<종류>.csv 를 만든다. stem 은 사용자가 입력한 이름.
+//  각 함수가 스스로 필요한 조건(데이터·모델 유무)을 검사하므로
+//  어떤 순서로 불러도 안전하다. 파일 쓰기 실패는 예외로 올라가
+//  menu_export 가 한꺼번에 잡는다.
+// ════════════════════════════════════════════════════════════════
+
+// 원본 실험 데이터 → <stem>_data.csv
+// save_csv 를 그대로 재사용한다.
 static void export_data(const DataSet& data, const std::string& stem)
 {
     if (data.size() == 0)
@@ -43,6 +54,17 @@ static void export_data(const DataSet& data, const std::string& stem)
     std::cout << "    ✓ " << stem << "_data.csv\n";
 }
 
+// 회귀 결과 → <stem>_regression.csv  (MATLAB Figure 3 용)
+//
+// 성격이 다른 값(계수 4개 + 지표 3개)을 한 파일에 담기 위해 "세로형"으로 쓴다.
+// 한 줄 = 이름 하나와 값 하나. term 열로 계수(beta)와 지표(metric)를 구분한다.
+//
+//   term,variable,value,influence
+//   beta1,temperature_C,0.0199,0.3988
+//   metric,r_squared,0.9999,
+//
+// influence(영향도)는 MATLAB 이 다시 계산하지 않도록 여기서 미리 넣어 둔다.
+// data 를 받는 이유가 이것 — 실험 범위(ranges)가 필요하다.
 static void export_regression(const DataSet& data, const Model& model, const std::string& stem)
 {   
     if (data.size() == 0)
@@ -89,6 +111,13 @@ static void export_regression(const DataSet& data, const Model& model, const std
     std::cout << "    ✓ " << stem << "_regression.csv\n";
 }
 
+// 실측 vs 예측 → <stem>_prediction.csv  (MATLAB Figure 2, 4 용)
+//
+// 원본 4열 뒤에 predicted, residual 두 열을 붙인다.
+//
+// 맨 앞 크기 검사가 중요하다. [3] 에서 모델을 만든 뒤 [2] 에서 행을 지우면
+// data 는 줄었는데 model.fitted 는 옛 크기 그대로라, 그냥 쓰면 다른 실험의
+// 예측값이 짝지어진 엉터리 파일이 나온다. (모델이 없을 때도 이 검사에 걸린다.)
 static void export_prediction(const DataSet& data, const Model& model, const std::string& stem)
 {
     if (model.fitted.size() != static_cast<size_t>(data.size()))
@@ -118,6 +147,11 @@ static void export_prediction(const DataSet& data, const Model& model, const std
     std::cout << "    ✓ " << stem << "_prediction.csv\n";
 }
 
+// 격자 예측값 → <stem>_surface.csv  (MATLAB Figure 1, 3D 표면용)
+//
+// [5] 최적 조건 탐색이 쓰는 grid_search 를 그대로 재사용한다.
+// 실험 범위를 20등분 → 21³ = 9,261행 (약 500 KB).
+// MATLAB 쪽에서 농도를 하나씩 골라 온도×촉매 표면으로 그린다.
 static void export_surface(const DataSet& data, const Model& model, const std::string& stem)
 {
     if (data.size() == 0)
@@ -154,6 +188,14 @@ static void export_surface(const DataSet& data, const Model& model, const std::s
     std::cout << "    ✓ " << stem << "_surface.csv  (" << rows.size() << "행)\n";
 }
 
+// ════════════════════════════════════════════════════════════════
+//  [7] CSV 내보내기
+//
+//  항목(1~4) 또는 전체(5)를 고르고 파일명을 받아 export_* 를 부른다.
+//  MATLAB 시각화를 하려면 반드시 5(전체)여야 한다 — visualize.m 이
+//  regression / prediction / surface 세 파일을 모두 읽기 때문.
+//  마지막에 visualize.m 에 넣을 stem 값을 그대로 보여 준다.
+// ════════════════════════════════════════════════════════════════
 void menu_export(const DataSet& data, const Model& model)
 {
     std::cout << "\n  ── CSV 내보내기 ──────────────────────\n";
@@ -225,6 +267,18 @@ void menu_export(const DataSet& data, const Model& model)
     std::cout << "       stem = '" << stem << "';\n";
 }
 
+// ════════════════════════════════════════════════════════════════
+//  [6] 실험 가이드 출력
+//
+//  실험을 하기 "전에" 쓰는 메뉴라 데이터·모델이 없어도 동작한다.
+//  data 는 수준 기본값을 제안하는 데만 쓴다 (있으면 실험 범위, 없으면 DEF_LO/HI).
+//
+//  흐름: 변인별 최소·최대 입력 → 4수준으로 3등분 → 라틴방격 16행 생성
+//        → 표 출력 → (선택) data/ 에 CSV 저장
+//
+//  저장한 CSV 는 속도 열이 0 이다. 실험하며 그 칸만 채운 뒤
+//  [1] → [2] 로 다시 불러오면 바로 [3] 회귀로 이어진다.
+// ════════════════════════════════════════════════════════════════
 void menu_experiment_guide(const DataSet& data)
 {
     std::cout << "\n  ── 실험 설계 가이드 ──────────────────\n\n";
@@ -353,6 +407,20 @@ void menu_experiment_guide(const DataSet& data)
 
 }
 
+// ════════════════════════════════════════════════════════════════
+//  [5] 최적 반응 조건 탐색
+//
+//  흐름: 탐색 범위 입력 → 분할 수 입력 → 모드 선택
+//        → grid_search 로 모든 조합 계산 → 모드별 정렬 → Top 5 표 + 결론
+//
+//  세 모드는 "무엇을 좋다고 볼지"만 다르고 계산은 같다.
+//    1. 속도 최대        — 속도 큰 순
+//    2. 목표에 근접      — |예측 - 목표| 작은 순
+//    3. 목표 + 촉매 최소 — 목표 이상만 남기고 촉매 적은 순 (같으면 속도 빠른 순)
+//
+//  알아둘 점: 계수가 전부 양수면 모드 1의 답은 항상 탐색 범위의 구석이다.
+//  선형 모델의 성질이며, 실용적인 답은 모드 2·3 에서 나온다.
+// ════════════════════════════════════════════════════════════════
 void menu_optimize(const DataSet& data, const Model& model)
 {
     std::cout << "\n  ── 최적 반응 조건 탐색 ───────────────\n";
@@ -542,6 +610,20 @@ void menu_optimize(const DataSet& data, const Model& model)
     }
 }
 
+// ════════════════════════════════════════════════════════════════
+//  [3] 회귀 모델 생성
+//
+//  fit() 으로 모델을 만들어 main 의 model 에 저장한다 (그래서 Model& 로 받는다).
+//  이후 [4][5][7] 이 이 모델을 쓴다.
+//
+//  출력: 회귀 계수 → R²·RMSE → 변인 영향도
+//
+//  영향도를 따로 보여 주는 이유: 계수(β)는 "1단위 증가 시 변화량"이라
+//  단위가 다른 변인끼리 크기를 비교하면 안 된다. 각 변인이 실험에서 실제로
+//  움직인 폭을 곱한 |β| × (최대 - 최소) 로 환산해야 공정하게 비교된다.
+//
+//  fit() 이 던지는 예외 세 가지를 원인별로 다르게 안내한다.
+// ════════════════════════════════════════════════════════════════
 void menu_regression(DataSet& data, Model& model)
 {
     std::cout << "\n  ── 다중 선형 회귀 분석 ───────────────\n\n";
@@ -624,6 +706,15 @@ void menu_regression(DataSet& data, Model& model)
     std::cout << "     계수 크기만으로 비교하면 안 됩니다 — 변인마다 단위와 변화 폭이 다릅니다.\n";
 }
 
+// ════════════════════════════════════════════════════════════════
+//  [4] 산소 발생 속도 예측
+//
+//  조건 3개를 받아 model.predict 로 속도를 계산한다. y 를 누르면 반복.
+//
+//  data 를 받는 이유: 입력값이 실험 범위를 벗어났는지 확인하기 위해서다.
+//  범위 밖의 예측(외삽)은 계산은 되지만 근거가 없으므로 경고한다.
+//  음수 예측도 물리적으로 불가능하므로 따로 알린다.
+// ════════════════════════════════════════════════════════════════
 void menu_predict(const DataSet& data, const Model& model)
 {
     std::cout << "\n  ── 산소 발생 속도 예측 ───────────────\n";
@@ -683,6 +774,17 @@ void menu_predict(const DataSet& data, const Model& model)
     }
 }
 
+// ════════════════════════════════════════════════════════════════
+//  [2] 저장된 데이터 조회
+//
+//  표 + 변인별 최소·최대 요약 + 하위 메뉴(행 삭제 / 초기화).
+//  전체가 while 루프인 이유: 행을 지운 뒤 바뀐 표를 다시 보여 주기 위해
+//  continue 로 처음부터 다시 그린다. 0건 검사도 루프 안에 있어야
+//  마지막 행을 지웠을 때 빈 표를 그리지 않는다.
+//
+//  삭제할 행 번호가 범위 밖이면 delete_record 가 out_of_range 를 던지고
+//  여기서 잡아 안내한다.
+// ════════════════════════════════════════════════════════════════
 void menu_view_data(DataSet& data)
 {
     while (true)
@@ -769,6 +871,12 @@ void menu_view_data(DataSet& data)
     }
 }
 
+// [1-1] 직접 입력
+//
+// 실험 1건(값 4개)씩 반복해서 받고, 끝나면 파일명을 물어 data/ 에 저장한다.
+// 빈 파일명이면 저장하지 않는다 (data/.csv 같은 이름 없는 파일이 생기는 것을 막음).
+// 입력 도중 EOF 면 InputCancelled 가, 저장 실패면 runtime_error 가 올라가
+// menu_input_data 에서 잡힌다.
 void input_manually(DataSet& data)
 {
     int count = 0;
@@ -811,6 +919,15 @@ void input_manually(DataSet& data)
     std::cout << "  ✓ 저장 완료: ./data/" << with_csv_extension(filename) << "\n";
 }
 
+// [1-2] CSV 파일 불러오기
+//
+// data/ 폴더의 CSV 목록을 보여 주고 번호로 고르게 한다.
+// 파일이 없으면 data 폴더의 절대 경로와 형식을 안내한다 — 처음 쓰는 사람은
+// 어디에 넣어야 하는지 모르기 때문.
+//
+// 이미 데이터가 있으면 덮어쓸지 묻는다 (합치지 않는다 — 조건이 다른 실험이
+// 섞이면 회귀가 엉망이 됨). load_csv 를 먼저 하고 마지막에 대입하므로,
+// 파일이 망가져 실패해도 기존 데이터는 그대로 남는다.
 void input_from_csv(DataSet& data)
 {
     // 절대 경로로 보여준다. "data 폴더"라고만 하면 어디를 말하는지 알 수 없다.
@@ -887,6 +1004,12 @@ void input_from_csv(DataSet& data)
     }
 }
 
+// ════════════════════════════════════════════════════════════════
+//  [1] 실험 데이터 입력
+//
+//  직접 입력 / CSV 불러오기 중 고르는 입구.
+//  두 하위 함수가 던지는 예외(InputCancelled, 파일 오류)를 여기 한 곳에서 잡는다.
+// ════════════════════════════════════════════════════════════════
 void menu_input_data(DataSet& data)
 {
     while (true)
@@ -958,6 +1081,16 @@ void menu_input_data(DataSet& data)
 }
 
 
+// ════════════════════════════════════════════════════════════════
+//  프로그램 시작점 — 메인 메뉴 루프
+//
+//  1. Windows 면 콘솔을 UTF-8 로 (한글·박스 문자)
+//  2. data/, output/ 폴더가 없으면 만든다
+//  3. 메뉴를 보여 주고 고른 번호의 menu_* 함수를 부른다. 0 이면 종료.
+//
+//  data 와 model 이 프로그램 전체가 공유하는 상태의 전부다.
+//  메뉴 함수들에 참조로 넘겨, 어느 함수가 무엇을 바꾸는지 시그니처로 드러나게 한다.
+// ════════════════════════════════════════════════════════════════
 int main()
 {
 #ifdef _WIN32

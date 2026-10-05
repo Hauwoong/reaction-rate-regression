@@ -1,3 +1,5 @@
+// regression.cpp — 회귀식과 각 값의 의미는 regression.h 에 있다.
+
 #include "regression.h"
 #include "linalg.h"
 #include <cmath>

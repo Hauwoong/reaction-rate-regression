@@ -1,3 +1,5 @@
+// model.cpp — 각 함수의 설명은 model.h 에 있다. 여기엔 구현상 이유만 적는다.
+
 #include "model.h"
 #include <stdexcept>
 
@@ -31,6 +33,7 @@ void DataSet::delete_record(int index)
     {
         throw std::out_of_range("Index out of range");
     }
+    // 사용자가 보는 번호는 1부터, vector 는 0부터라 1을 뺀다
     records.erase(records.begin() + index - 1);
 }
 
@@ -90,6 +93,7 @@ std::array<Range, COLUMN_COUNT> DataSet::ranges() const
 {
     std::array<Range, COLUMN_COUNT> ranges;
 
+    // 데이터가 없으면 std::array 가 쓰레기값을 그대로 돌려주므로 0으로 채워 보낸다
     if (records.empty())
     {
         for (int j = 0; j < COLUMN_COUNT; j++)
@@ -106,6 +110,8 @@ std::array<Range, COLUMN_COUNT> DataSet::ranges() const
         {
             double value = records[i].get(static_cast<Column>(j));
             
+            // 최솟값·최댓값을 0으로 시작하면 값이 전부 20~40 일 때 최솟값이 0으로
+            // 남는다. 첫 레코드 값으로 시작하고 두 번째부터 비교한다.
             if (i == 0)
             {
                 ranges[j].lo = value;

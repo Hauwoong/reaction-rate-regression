@@ -1,3 +1,5 @@
+// optimizer.cpp — 격자 탐색의 개념은 optimizer.h 에 있다.
+
 #include "optimizer.h"
 #include <stdexcept>
 

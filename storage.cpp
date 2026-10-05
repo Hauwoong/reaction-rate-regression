@@ -1,3 +1,5 @@
+// storage.cpp — 각 함수의 설명은 storage.h 에 있다. 여기엔 구현상 이유만 적는다.
+
 #include "storage.h"
 #include <fstream>
 #include <stdexcept>
@@ -43,6 +45,8 @@ void write_csv(const std::string& path, const std::vector<std::string>& header, 
 std::string with_csv_extension(const std::string& filename)
 {
     std::string lower = filename;
+    // 원본은 그대로 두고 소문자 사본으로만 비교한다 (.CSV 도 인정하기 위해).
+    // tolower 에 음수를 넘기면 정의되지 않은 동작이라 unsigned char 로 받는다.
     std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) {return std::tolower(c);});
 
     if (fs::path(lower).extension() == ".csv")
@@ -177,6 +181,7 @@ std::vector<FileInfo> list_csv_files(const std::string& directory)
 {
     std::vector<FileInfo> result;
 
+    // 폴더가 없으면 directory_iterator 가 예외를 던지므로 미리 빈 목록을 돌려준다
     if (!fs::exists(directory)) return {};
 
     for (const auto& entry : fs::directory_iterator(directory))
@@ -192,12 +197,15 @@ std::vector<FileInfo> list_csv_files(const std::string& directory)
         }
         catch (const std::exception&)
         {
+            // 망가진 파일 하나 때문에 목록 전체가 실패하지 않도록, 건수만 -1 로 표시
             info.count = -1;
         }
         result.push_back(info);
 
     }
 
+    // directory_iterator 의 순서는 보장되지 않는다. 정렬하지 않으면 실행할 때마다
+    // [1] [2] 번호가 다른 파일을 가리킬 수 있다.
     std::sort(result.begin(), result.end(), [](const FileInfo& a, const FileInfo& b) {return a.name < b.name; });
 
     return result;

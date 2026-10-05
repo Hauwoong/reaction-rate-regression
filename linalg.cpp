@@ -1,3 +1,5 @@
+// linalg.cpp — 각 함수의 설명은 linalg.h 에 있다. 여기엔 구현상 이유만 적는다.
+
 #include <cmath>
 #include <algorithm>
 #include <stdexcept>

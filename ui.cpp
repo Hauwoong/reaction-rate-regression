@@ -1,3 +1,5 @@
+// ui.cpp — 각 함수의 설명은 ui.h 에 있다. 여기엔 구현상 이유만 적는다.
+
 #include "ui.h"
 #include <iostream>
 #include <string>
@@ -74,6 +76,7 @@ std::string trim(const std::string& s)
     const std::string WS = " \t\r\n";
 
     size_t first = s.find_first_not_of(WS);
+    // 전부 공백이면 npos(못 찾음)가 나온다. 이걸 substr 에 넣으면 예외가 난다.
     if (first == std::string::npos)
         return "";
     
@@ -175,6 +178,7 @@ std::string pad(const std::string& s, int width, bool right_align)
 {
     int space = width - display_width(s);
 
+    // 이미 넘치면 자르지 않는다 — 바이트 단위로 자르면 한글이 반쪽 나서 깨진다
     if (space <= 0)
         return s;
 
@@ -200,6 +204,7 @@ void print_table_line(const std::vector<int>& widths, const std::string& left, c
     {
         std::string bar = "";
 
+        // +2 는 print_table_row 가 셀 좌우에 붙이는 공백 1칸씩. 둘이 맞아야 세로선이 일직선이 된다
         for (int j = 0; j < widths[i]+2; ++j)
             bar += "─";
         
