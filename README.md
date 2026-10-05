@@ -29,11 +29,24 @@ v = β₀ + β₁·T + β₂·C + β₃·H
 
 **Windows, macOS, Linux 어디서나 동작합니다.** 표준 C++만 쓰며, 운영체제에 의존하는 코드는 `main.cpp` 의 콘솔 UTF-8 설정 두 줄뿐입니다 (`#ifdef _WIN32` 로 분기).
 
+### 처음 받았다면 (Windows) — `setup.bat` 더블클릭
+
+컴파일러가 없는 컴퓨터라도 이것 하나면 됩니다.
+
+1. 저장소 폴더에서 **`setup.bat` 을 더블클릭**
+2. 컴파일러가 없으면 설치할지 물어봅니다 → `y`
+3. 설치(약 250MB)와 빌드가 끝나면 `co2.exe` 가 생깁니다
+
+이미 g++ 9 이상이 있으면 설치를 건너뛰고 바로 빌드합니다. 설치에는 Windows 10/11 에 기본 포함된 `winget` 을 씁니다.
+
+> MATLAB 은 유료라 자동 설치하지 않습니다. 프로그램 실행에는 필요 없고, `visualize.m` 으로 그래프를 그릴 때만 필요합니다.
+
 ### 필요한 것
-- C++20을 지원하는 컴파일러
-  - Windows: g++ 13 이상 (MinGW-W64) 또는 MSVC 2022
+- C++17을 지원하는 컴파일러
+  - Windows: g++ 9 이상 (MinGW-W64) 또는 MSVC 2019 이상 (`/std:c++17 /utf-8`)
+  - **Dev-C++ 에 딸린 옛 컴파일러(GCC 4.9)는 안 됩니다** — `std::filesystem` 이 없습니다
   - macOS: Xcode Command Line Tools (`xcode-select --install`) — macOS 10.15 이상
-  - Linux: g++ 13 이상 또는 clang 16 이상
+  - Linux: g++ 9 이상 또는 clang 10 이상
 - 시각화용 MATLAB (선택 — 프로그램 자체는 없어도 동작)
 
 ### 빌드
@@ -51,7 +64,7 @@ chmod +x build.sh    # 처음 한 번만
 
 스크립트 없이 직접 치려면:
 ```bash
-g++ -std=c++20 -O2 -Wall main.cpp model.cpp storage.cpp ui.cpp linalg.cpp regression.cpp optimizer.cpp -o co2
+g++ -std=c++17 -O2 -Wall main.cpp model.cpp storage.cpp ui.cpp linalg.cpp regression.cpp optimizer.cpp -o co2
 ```
 
 `-O2` 는 격자 탐색을 2~4배 빠르게 합니다.

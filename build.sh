@@ -15,6 +15,6 @@ SRC="main.cpp model.cpp storage.cpp ui.cpp linalg.cpp regression.cpp optimizer.c
 OUT="co2"
 
 echo "빌드 중... ($CXX)"
-$CXX -std=c++20 -O2 -Wall -Wextra $SRC -o $OUT
+$CXX -std=c++17 -O2 -Wall -Wextra $SRC -o $OUT
 
 echo "완료: ./$OUT"
